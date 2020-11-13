@@ -14,5 +14,5 @@ Completed steps from Table of Contents
 - [ ] Appendices
 
 Skipped
-- [Step 2.15](https://viewsourcecode.org/snaptoken/kilo/02.enteringRawMode.html#miscellaneous-flags), partially: CS8 flag
-- [Step 2.16: A timeout for `read`](https://viewsourcecode.org/snaptoken/kilo/02.enteringRawMode.html#a-timeout-for-read)
+- [Step 15](https://viewsourcecode.org/snaptoken/kilo/02.enteringRawMode.html#miscellaneous-flags), partially: CS8 flag
+- [Step 16: A timeout for `read`](https://viewsourcecode.org/snaptoken/kilo/02.enteringRawMode.html#a-timeout-for-read)
