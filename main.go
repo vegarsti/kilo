@@ -8,6 +8,8 @@ import (
 	"os/exec"
 )
 
+var originalSttyState bytes.Buffer
+
 func getSttyState(state *bytes.Buffer) error {
 	cmd := exec.Command("stty", "-g")
 	cmd.Stdin = os.Stdin
@@ -23,8 +25,7 @@ func setSttyState(state *bytes.Buffer) error {
 }
 
 func enableRawMode() error {
-	var sttyState bytes.Buffer
-	if err := getSttyState(&sttyState); err != nil {
+	if err := getSttyState(&originalSttyState); err != nil {
 		return err
 	}
 	setSttyState(bytes.NewBufferString("cbreak"))  // Turn off canonical mode
@@ -33,6 +34,13 @@ func enableRawMode() error {
 	setSttyState(bytes.NewBufferString("-ixon"))   // Turn off Ctrl-S and Ctrl-Q
 	setSttyState(bytes.NewBufferString("-iexten")) // Turn off Ctrl-V
 	setSttyState(bytes.NewBufferString("-icrnl"))  // Fix Ctrl-M
+	return nil
+}
+
+func disableRawMode() error {
+	if err := setSttyState(&originalSttyState); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -50,6 +58,7 @@ func main() {
 	if err := enableRawMode(); err != nil {
 		fmt.Fprintf(os.Stderr, "kilo: %v\n", err)
 	}
+	defer disableRawMode()
 	r := bufio.NewReader(os.Stdin)
 	for {
 		c, err := r.ReadByte()
