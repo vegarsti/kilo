@@ -28,23 +28,29 @@ func enableRawMode() error {
 	if err := getSttyState(&originalSttyState); err != nil {
 		return err
 	}
-	setSttyState(bytes.NewBufferString("cbreak"))  // Turn off canonical mode
-	setSttyState(bytes.NewBufferString("-echo"))   // Turn off terminal echoing
-	setSttyState(bytes.NewBufferString("-isig"))   // Turn off Ctrl-C and Ctrl-Z signals
-	setSttyState(bytes.NewBufferString("-ixon"))   // Turn off Ctrl-S and Ctrl-Q
-	setSttyState(bytes.NewBufferString("-iexten")) // Turn off Ctrl-V
-	setSttyState(bytes.NewBufferString("-icrnl"))  // Fix Ctrl-M
-	setSttyState(bytes.NewBufferString("-opost"))  // Turn off all output processing (translation of newlines)
-	setSttyState(bytes.NewBufferString("-brkint"))
-	setSttyState(bytes.NewBufferString("-inpck"))
-	setSttyState(bytes.NewBufferString("-istrip"))
-	setSttyState(bytes.NewBufferString("-cs8"))
+	sttyOptions := []string{
+		"cbreak",  // Turn off canonical mode
+		"-echo",   // Turn off terminal echoing
+		"-isig",   // Turn off Ctrl-C and Ctrl-Z signals
+		"-ixon",   // Turn off Ctrl-S and Ctrl-Q
+		"-iexten", // Turn off Ctrl-V
+		"-icrnl",  // Fix Ctrl-M
+		"-opost",  // Turn off all output processing (translation of newlines)
+		"-brkint", // Turn off miscellaneous things ...
+		"-inpck",
+		"-istrip",
+	}
+	for _, option := range sttyOptions {
+		if err := setSttyState(bytes.NewBufferString(option)); err != nil {
+			return fmt.Errorf("stty %s: %v", option, err)
+		}
+	}
 	return nil
 }
 
 func disableRawMode() error {
 	if err := setSttyState(&originalSttyState); err != nil {
-		return err
+		return fmt.Errorf("set stty state: %v", err)
 	}
 	return nil
 }
@@ -59,16 +65,21 @@ func iscntrl(b byte) bool {
 	return false
 }
 
+func die(err error) {
+	fmt.Fprintf(os.Stderr, "kilo: %v\n", err)
+	os.Exit(1)
+}
+
 func main() {
 	if err := enableRawMode(); err != nil {
-		fmt.Fprintf(os.Stderr, "kilo: %v\n", err)
+		die(err)
 	}
 	defer disableRawMode()
 	r := bufio.NewReader(os.Stdin)
 	for {
 		c, err := r.ReadByte()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "kilo: %v\n", err)
+			die(err)
 		}
 		if c == 'q' {
 			break
