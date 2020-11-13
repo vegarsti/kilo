@@ -70,6 +70,10 @@ func die(err error) {
 	os.Exit(1)
 }
 
+func ctrlKey(b byte) byte {
+	return b - 96
+}
+
 func main() {
 	if err := enableRawMode(); err != nil {
 		die(err)
@@ -81,7 +85,7 @@ func main() {
 		if err != nil {
 			die(err)
 		}
-		if c == 'q' {
+		if c == ctrlKey('q') {
 			break
 		}
 		if iscntrl(c) {
