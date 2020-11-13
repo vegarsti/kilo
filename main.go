@@ -8,10 +8,12 @@ import (
 )
 
 func main() {
+	var c byte
+	var err error
 	r := bufio.NewReader(os.Stdin)
 	for {
-		_, err := r.ReadByte()
-		if err == io.EOF {
+		c, err = r.ReadByte()
+		if err == io.EOF || string(c) == "q" {
 			break
 		}
 		if err != nil {
