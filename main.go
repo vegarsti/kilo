@@ -34,6 +34,7 @@ func enableRawMode() error {
 	setSttyState(bytes.NewBufferString("-ixon"))   // Turn off Ctrl-S and Ctrl-Q
 	setSttyState(bytes.NewBufferString("-iexten")) // Turn off Ctrl-V
 	setSttyState(bytes.NewBufferString("-icrnl"))  // Fix Ctrl-M
+	setSttyState(bytes.NewBufferString("-opost"))  // Turn off all output processing (translation of newlines)
 	return nil
 }
 
@@ -69,9 +70,9 @@ func main() {
 			break
 		}
 		if iscntrl(c) {
-			fmt.Printf("%d\n", c)
+			fmt.Printf("%d\r\n", c)
 		} else {
-			fmt.Printf("%d ('%c')\n", c, c)
+			fmt.Printf("%d ('%c')\r\n", c, c)
 		}
 	}
 }
