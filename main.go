@@ -93,16 +93,14 @@ func editorProcessKeypress() error {
 	if c == ctrlKey('q') {
 		return io.EOF
 	}
-	if iscntrl(c) {
-		fmt.Printf("%d\r\n", c)
-	} else {
-		fmt.Printf("%d ('%c')\r\n", c, c)
-	}
 	return nil
 }
 
 func editorRefreshScreen() error {
 	if _, err := writer.Write([]byte("\x1b[2J")); err != nil {
+		return fmt.Errorf("write: %v", err)
+	}
+	if _, err := writer.Write([]byte("\x1b[H")); err != nil {
 		return fmt.Errorf("write: %v", err)
 	}
 	if err := writer.Flush(); err != nil {
