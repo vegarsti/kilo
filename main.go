@@ -35,6 +35,10 @@ func enableRawMode() error {
 	setSttyState(bytes.NewBufferString("-iexten")) // Turn off Ctrl-V
 	setSttyState(bytes.NewBufferString("-icrnl"))  // Fix Ctrl-M
 	setSttyState(bytes.NewBufferString("-opost"))  // Turn off all output processing (translation of newlines)
+	setSttyState(bytes.NewBufferString("-brkint"))
+	setSttyState(bytes.NewBufferString("-inpck"))
+	setSttyState(bytes.NewBufferString("-istrip"))
+	setSttyState(bytes.NewBufferString("-cs8"))
 	return nil
 }
 
