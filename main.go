@@ -24,6 +24,16 @@ func setSttyState(state *bytes.Buffer) error {
 	return cmd.Run()
 }
 
+func iscntrl(b byte) bool {
+	if b < 32 {
+		return true
+	}
+	if b == 127 {
+		return true
+	}
+	return false
+}
+
 func main() {
 	var err error
 	err = getSttyState(&originalSttyState)
@@ -45,6 +55,10 @@ func main() {
 		if c == 'q' {
 			break
 		}
-		fmt.Printf("%d", c)
+		if iscntrl(c) {
+			fmt.Printf("%d\n", c)
+		} else {
+			fmt.Printf("%d ('%c')\n", c, c)
+		}
 	}
 }
