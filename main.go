@@ -98,9 +98,24 @@ func editorProcessKeypress() error {
 	return nil
 }
 
+func editorDrawRows() error {
+	for y := 0; y < 24; y++ {
+		if _, err := writer.Write([]byte("~\r\n")); err != nil {
+			return fmt.Errorf("write: %v", err)
+		}
+	}
+	return nil
+}
+
 func editorRefreshScreen() error {
 	if _, err := writer.Write([]byte("\x1b[2J")); err != nil {
 		return fmt.Errorf("write: %v", err)
+	}
+	if _, err := writer.Write([]byte("\x1b[H")); err != nil {
+		return fmt.Errorf("write: %v", err)
+	}
+	if err := editorDrawRows(); err != nil {
+		return fmt.Errorf("editorDrawRows: %v", err)
 	}
 	if _, err := writer.Write([]byte("\x1b[H")); err != nil {
 		return fmt.Errorf("write: %v", err)
