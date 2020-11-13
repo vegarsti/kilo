@@ -9,6 +9,7 @@ import (
 )
 
 var originalSttyState bytes.Buffer
+var reader *bufio.Reader
 
 func getSttyState(state *bytes.Buffer) error {
 	cmd := exec.Command("stty", "-g")
@@ -74,24 +75,36 @@ func ctrlKey(b byte) byte {
 	return b - 96
 }
 
+func editorReadKey() byte {
+	c, err := reader.ReadByte()
+	if err != nil {
+		die(err)
+	}
+	return c
+}
+
+func editorProcessKeypress() bool {
+	c := editorReadKey()
+	if c == ctrlKey('q') {
+		return false
+	}
+	if iscntrl(c) {
+		fmt.Printf("%d\r\n", c)
+	} else {
+		fmt.Printf("%d ('%c')\r\n", c, c)
+	}
+	return true
+}
+
 func main() {
 	if err := enableRawMode(); err != nil {
 		die(err)
 	}
 	defer disableRawMode()
-	r := bufio.NewReader(os.Stdin)
+	reader = bufio.NewReader(os.Stdin)
 	for {
-		c, err := r.ReadByte()
-		if err != nil {
-			die(err)
-		}
-		if c == ctrlKey('q') {
+		if keepReading := editorProcessKeypress(); !keepReading {
 			break
-		}
-		if iscntrl(c) {
-			fmt.Printf("%d\r\n", c)
-		} else {
-			fmt.Printf("%d ('%c')\r\n", c, c)
 		}
 	}
 }
