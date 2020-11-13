@@ -72,7 +72,7 @@ func die(err error) {
 }
 
 func ctrlKey(b byte) byte {
-	return b - 96
+	return b & 0b00011111
 }
 
 func editorReadKey() byte {
@@ -83,7 +83,7 @@ func editorReadKey() byte {
 	return c
 }
 
-func editorProcessKeypress() bool {
+func editorProcessKeypress() (keepReading bool) {
 	c := editorReadKey()
 	if c == ctrlKey('q') {
 		return false
