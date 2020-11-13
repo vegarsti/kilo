@@ -27,7 +27,7 @@ func setSttyState(state *bytes.Buffer) error {
 
 func enableRawMode() error {
 	if err := getSttyState(&originalSttyState); err != nil {
-		return err
+		return fmt.Errorf("get stty: %v", err)
 	}
 	sttyOptions := []string{
 		"cbreak",  // Turn off canonical mode
@@ -43,7 +43,7 @@ func enableRawMode() error {
 	}
 	for _, option := range sttyOptions {
 		if err := setSttyState(bytes.NewBufferString(option)); err != nil {
-			return fmt.Errorf("stty %s: %v", option, err)
+			return fmt.Errorf("set stty %s: %v", option, err)
 		}
 	}
 	return nil
@@ -98,7 +98,7 @@ func editorProcessKeypress() bool {
 
 func main() {
 	if err := enableRawMode(); err != nil {
-		die(err)
+		die(fmt.Errorf("enableRawMode: %v", err))
 	}
 	defer disableRawMode()
 	reader = bufio.NewReader(os.Stdin)
