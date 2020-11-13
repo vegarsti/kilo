@@ -69,6 +69,7 @@ func iscntrl(b byte) bool {
 }
 
 func die(err error) {
+	writer.Write([]byte("\x1b[2J\x1b[H")) // Refresh the screen. Ignore any errors
 	fmt.Fprintf(os.Stderr, "kilo: %v\n", err)
 	os.Exit(1)
 }
@@ -91,6 +92,7 @@ func editorProcessKeypress() error {
 		return fmt.Errorf("editorReadKey: %v", err)
 	}
 	if c == ctrlKey('q') {
+		writer.Write([]byte("\x1b[2J\x1b[H")) // Refresh the screen. Ignore any errors
 		return io.EOF
 	}
 	return nil
@@ -110,12 +112,12 @@ func editorRefreshScreen() error {
 }
 
 func main() {
+	writer = bufio.NewWriter(os.Stdout)
 	if err := enableRawMode(); err != nil {
 		die(fmt.Errorf("enableRawMode: %v", err))
 	}
 	defer disableRawMode()
 	reader = bufio.NewReader(os.Stdin)
-	writer = bufio.NewWriter(os.Stdout)
 	for {
 		if err := editorRefreshScreen(); err != nil {
 			die(fmt.Errorf("editorRefreshScreen: %v", err))
