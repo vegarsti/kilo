@@ -45,6 +45,7 @@ func main() {
 	setSttyState(bytes.NewBufferString("cbreak")) // Turn off canonical mode
 	setSttyState(bytes.NewBufferString("-echo"))  // Turn off terminal echoing
 	setSttyState(bytes.NewBufferString("-isig"))  // Turn off Ctrl-C and Ctrl-Z signals
+	setSttyState(bytes.NewBufferString("-ixon"))  // Turn off Ctrl-S and Ctrl-Q
 
 	r := bufio.NewReader(os.Stdin)
 	var c byte
