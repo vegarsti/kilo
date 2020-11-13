@@ -24,8 +24,7 @@ func setSttyState(state *bytes.Buffer) error {
 
 func enableRawMode() error {
 	var sttyState bytes.Buffer
-	err := getSttyState(&sttyState)
-	if err != nil {
+	if err := getSttyState(&sttyState); err != nil {
 		return err
 	}
 	setSttyState(bytes.NewBufferString("cbreak"))  // Turn off canonical mode
@@ -33,6 +32,7 @@ func enableRawMode() error {
 	setSttyState(bytes.NewBufferString("-isig"))   // Turn off Ctrl-C and Ctrl-Z signals
 	setSttyState(bytes.NewBufferString("-ixon"))   // Turn off Ctrl-S and Ctrl-Q
 	setSttyState(bytes.NewBufferString("-iexten")) // Turn off Ctrl-V
+	setSttyState(bytes.NewBufferString("-icrnl"))  // Fix Ctrl-M
 	return nil
 }
 
