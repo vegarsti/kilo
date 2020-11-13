@@ -4,12 +4,14 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 )
 
 var originalSttyState bytes.Buffer
 var reader *bufio.Reader
+var writer *bufio.Writer
 
 func getSttyState(state *bytes.Buffer) error {
 	cmd := exec.Command("stty", "-g")
@@ -75,25 +77,38 @@ func ctrlKey(b byte) byte {
 	return b & 0b00011111
 }
 
-func editorReadKey() byte {
+func editorReadKey() (byte, error) {
 	c, err := reader.ReadByte()
 	if err != nil {
-		die(err)
+		return 0, err
 	}
-	return c
+	return c, nil
 }
 
-func editorProcessKeypress() (keepReading bool) {
-	c := editorReadKey()
+func editorProcessKeypress() error {
+	c, err := editorReadKey()
+	if err != nil {
+		return fmt.Errorf("editorReadKey: %v", err)
+	}
 	if c == ctrlKey('q') {
-		return false
+		return io.EOF
 	}
 	if iscntrl(c) {
 		fmt.Printf("%d\r\n", c)
 	} else {
 		fmt.Printf("%d ('%c')\r\n", c, c)
 	}
-	return true
+	return nil
+}
+
+func editorRefreshScreen() error {
+	if _, err := writer.Write([]byte("\x1b[2J")); err != nil {
+		return fmt.Errorf("write: %v", err)
+	}
+	if err := writer.Flush(); err != nil {
+		return fmt.Errorf("flush: %v", err)
+	}
+	return nil
 }
 
 func main() {
@@ -102,9 +117,16 @@ func main() {
 	}
 	defer disableRawMode()
 	reader = bufio.NewReader(os.Stdin)
+	writer = bufio.NewWriter(os.Stdout)
 	for {
-		if keepReading := editorProcessKeypress(); !keepReading {
-			break
+		if err := editorRefreshScreen(); err != nil {
+			die(fmt.Errorf("editorRefreshScreen: %v", err))
+		}
+		if err := editorProcessKeypress(); err != nil {
+			if err == io.EOF {
+				break
+			}
+			die(fmt.Errorf("editProcessKeypress: %v", err))
 		}
 	}
 }
