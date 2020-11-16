@@ -16,3 +16,4 @@ Completed steps from Table of Contents
 Skipped
 - [Step 15](https://viewsourcecode.org/snaptoken/kilo/02.enteringRawMode.html#miscellaneous-flags), partially: CS8 flag
 - [Step 16: A timeout for `read`](https://viewsourcecode.org/snaptoken/kilo/02.enteringRawMode.html#a-timeout-for-read)
+- Steps 36, 37, 38: Append buffer
