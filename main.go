@@ -19,6 +19,9 @@ type editorConfig struct {
 }
 
 var e editorConfig
+var (
+	kiloVersion = "0.0.1"
+)
 
 func getSttyState(state *bytes.Buffer) error {
 	cmd := exec.Command("stty", "-g")
@@ -150,8 +153,18 @@ func editorProcessKeypress() error {
 
 func editorDrawRows() error {
 	for y := 0; y < e.screenRows; y++ {
-		if _, err := out.Write([]byte("~")); err != nil {
-			return fmt.Errorf("write ~: %v", err)
+		if y == e.screenRows/3 {
+			welcome := fmt.Sprintf("Kilo editor -- version %s", kiloVersion)
+			if len(welcome) > e.screenCols {
+				welcome = welcome[:e.screenCols]
+			}
+			if _, err := out.Write([]byte(welcome)); err != nil {
+				return fmt.Errorf("write newline: %v", err)
+			}
+		} else {
+			if _, err := out.Write([]byte("~")); err != nil {
+				return fmt.Errorf("write ~: %v", err)
+			}
 		}
 		if _, err := out.Write([]byte("\x1b[K")); err != nil {
 			return fmt.Errorf("write: %v", err)
