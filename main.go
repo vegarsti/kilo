@@ -69,18 +69,21 @@ func getCursorPosition() (int, int, error) {
 	if _, err := writer.Write([]byte("\x1b[6n")); err != nil {
 		return 0, 0, fmt.Errorf("ask for cursor position: %v", err)
 	}
-	writer.Flush()
-	buffer := make([]byte, 0)
+	if err := writer.Flush(); err != nil {
+		return 0, 0, fmt.Errorf("flush: %v", err)
+	}
+	buffer := make([]byte, 32)
+	i := 0
 	for {
 		c, err := reader.ReadByte()
 		if err != nil {
 			return 0, 0, fmt.Errorf("ReadByte: %v", err)
 		}
-		fmt.Printf("%d ('%c')\r\n", c, c)
 		if c == 'R' {
 			break
 		}
-		buffer = append(buffer, c)
+		buffer[i] = c
+		i++
 	}
 	if buffer[0] != '\x1b' || buffer[1] != '[' {
 		return 0, 0, fmt.Errorf("failed to parse cursor position")
