@@ -158,6 +158,17 @@ func editorDrawRows() error {
 			if len(welcome) > e.screenCols {
 				welcome = welcome[:e.screenCols]
 			}
+			padding := (e.screenCols - len(welcome)) / 2
+			if padding > 0 {
+				if _, err := out.Write([]byte("~")); err != nil {
+					return fmt.Errorf("write ~: %v", err)
+				}
+			}
+			for p := 0; p < padding-1; p++ {
+				if _, err := out.Write([]byte(" ")); err != nil {
+					return fmt.Errorf("write ' ': %v", err)
+				}
+			}
 			if _, err := out.Write([]byte(welcome)); err != nil {
 				return fmt.Errorf("write newline: %v", err)
 			}
