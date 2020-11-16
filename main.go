@@ -147,8 +147,14 @@ func editorProcessKeypress() error {
 
 func editorDrawRows() error {
 	for y := 0; y < e.screenRows; y++ {
-		if _, err := writer.Write([]byte("~\r\n")); err != nil {
-			return fmt.Errorf("write: %v", err)
+		if _, err := writer.Write([]byte("~")); err != nil {
+			return fmt.Errorf("write ~: %v", err)
+		}
+
+		if y < e.screenRows-1 {
+			if _, err := writer.Write([]byte("\r\n")); err != nil {
+				return fmt.Errorf("write newline: %v", err)
+			}
 		}
 	}
 	return nil
