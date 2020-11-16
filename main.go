@@ -10,8 +10,8 @@ import (
 )
 
 var originalSttyState bytes.Buffer
-var reader *bufio.Reader
-var writer *bufio.Writer
+var in *bufio.Reader
+var out *bufio.Writer
 
 type editorConfig struct {
 	screenRows int
@@ -66,16 +66,16 @@ func disableRawMode() error {
 }
 
 func getCursorPosition() (int, int, error) {
-	if _, err := writer.Write([]byte("\x1b[6n")); err != nil {
+	if _, err := out.Write([]byte("\x1b[6n")); err != nil {
 		return 0, 0, fmt.Errorf("ask for cursor position: %v", err)
 	}
-	if err := writer.Flush(); err != nil {
+	if err := out.Flush(); err != nil {
 		return 0, 0, fmt.Errorf("flush: %v", err)
 	}
 	buffer := make([]byte, 32)
 	i := 0
 	for {
-		c, err := reader.ReadByte()
+		c, err := in.ReadByte()
 		if err != nil {
 			return 0, 0, fmt.Errorf("ReadByte: %v", err)
 		}
@@ -96,7 +96,7 @@ func getCursorPosition() (int, int, error) {
 }
 
 func initEditor() error {
-	if _, err := writer.Write([]byte("\x1b[999C\x1b[999B")); err != nil {
+	if _, err := out.Write([]byte("\x1b[999C\x1b[999B")); err != nil {
 		return err
 	}
 	rows, cols, err := getCursorPosition()
@@ -119,7 +119,7 @@ func iscntrl(b byte) bool {
 }
 
 func die(err error) {
-	writer.Write([]byte("\x1b[2J\x1b[H")) // Refresh the screen. Ignore any errors
+	out.Write([]byte("\x1b[2J\x1b[H")) // Refresh the screen. Ignore any errors
 	fmt.Fprintf(os.Stderr, "kilo: %v\n", err)
 	os.Exit(1)
 }
@@ -129,7 +129,7 @@ func ctrlKey(b byte) byte {
 }
 
 func editorReadKey() (byte, error) {
-	c, err := reader.ReadByte()
+	c, err := in.ReadByte()
 	if err != nil {
 		return 0, err
 	}
@@ -142,7 +142,7 @@ func editorProcessKeypress() error {
 		return fmt.Errorf("editorReadKey: %v", err)
 	}
 	if c == ctrlKey('q') {
-		writer.Write([]byte("\x1b[2J\x1b[H")) // Refresh the screen. Ignore any errors
+		out.Write([]byte("\x1b[2J\x1b[H")) // Refresh the screen. Ignore any errors
 		return io.EOF
 	}
 	return nil
@@ -150,12 +150,12 @@ func editorProcessKeypress() error {
 
 func editorDrawRows() error {
 	for y := 0; y < e.screenRows; y++ {
-		if _, err := writer.Write([]byte("~")); err != nil {
+		if _, err := out.Write([]byte("~")); err != nil {
 			return fmt.Errorf("write ~: %v", err)
 		}
 
 		if y < e.screenRows-1 {
-			if _, err := writer.Write([]byte("\r\n")); err != nil {
+			if _, err := out.Write([]byte("\r\n")); err != nil {
 				return fmt.Errorf("write newline: %v", err)
 			}
 		}
@@ -164,27 +164,27 @@ func editorDrawRows() error {
 }
 
 func editorRefreshScreen() error {
-	if _, err := writer.Write([]byte("\x1b[2J")); err != nil {
+	if _, err := out.Write([]byte("\x1b[2J")); err != nil {
 		return fmt.Errorf("write: %v", err)
 	}
-	if _, err := writer.Write([]byte("\x1b[H")); err != nil {
+	if _, err := out.Write([]byte("\x1b[H")); err != nil {
 		return fmt.Errorf("write: %v", err)
 	}
 	if err := editorDrawRows(); err != nil {
 		return fmt.Errorf("editorDrawRows: %v", err)
 	}
-	if _, err := writer.Write([]byte("\x1b[H")); err != nil {
+	if _, err := out.Write([]byte("\x1b[H")); err != nil {
 		return fmt.Errorf("write: %v", err)
 	}
-	if err := writer.Flush(); err != nil {
+	if err := out.Flush(); err != nil {
 		return fmt.Errorf("flush: %v", err)
 	}
 	return nil
 }
 
 func main() {
-	reader = bufio.NewReader(os.Stdin)
-	writer = bufio.NewWriter(os.Stdout)
+	in = bufio.NewReader(os.Stdin)
+	out = bufio.NewWriter(os.Stdout)
 	if err := enableRawMode(); err != nil {
 		die(fmt.Errorf("enableRawMode: %v", err))
 	}
