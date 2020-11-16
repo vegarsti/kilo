@@ -164,6 +164,9 @@ func editorDrawRows() error {
 }
 
 func editorRefreshScreen() error {
+	if _, err := out.Write([]byte("\x1b[?25l")); err != nil {
+		return fmt.Errorf("write: %v", err)
+	}
 	if _, err := out.Write([]byte("\x1b[2J")); err != nil {
 		return fmt.Errorf("write: %v", err)
 	}
@@ -174,6 +177,9 @@ func editorRefreshScreen() error {
 		return fmt.Errorf("editorDrawRows: %v", err)
 	}
 	if _, err := out.Write([]byte("\x1b[H")); err != nil {
+		return fmt.Errorf("write: %v", err)
+	}
+	if _, err := out.Write([]byte("\x1b[?25h")); err != nil {
 		return fmt.Errorf("write: %v", err)
 	}
 	if err := out.Flush(); err != nil {
