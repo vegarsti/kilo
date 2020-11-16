@@ -16,6 +16,8 @@ var out *bufio.Writer
 type editorConfig struct {
 	screenRows int
 	screenCols int
+	cX         int
+	cY         int
 }
 
 var e editorConfig
@@ -98,13 +100,21 @@ func getCursorPosition() (int, int, error) {
 	return rows, cols, nil
 }
 
-func initEditor() error {
+func getWindowSize() (int, int, error) {
 	if _, err := out.Write([]byte("\x1b[999C\x1b[999B")); err != nil {
-		return err
+		return 0, 0, err
 	}
 	rows, cols, err := getCursorPosition()
 	if err != nil {
-		return fmt.Errorf("getCursorPosition: %v", err)
+		return 0, 0, fmt.Errorf("getCursorPosition: %v", err)
+	}
+	return rows, cols, nil
+}
+
+func initEditor() error {
+	rows, cols, err := getWindowSize()
+	if err != nil {
+		return fmt.Errorf("getWindowSize: %v", err)
 	}
 	e.screenRows = rows
 	e.screenCols = cols
@@ -139,6 +149,26 @@ func editorReadKey() (byte, error) {
 	return c, nil
 }
 
+func editorMoveCursor(c byte) error {
+	if c == 'a' {
+		e.cX--
+		return nil
+	}
+	if c == 'd' {
+		e.cX++
+		return nil
+	}
+	if c == 'w' {
+		e.cY--
+		return nil
+	}
+	if c == 's' {
+		e.cY++
+		return nil
+	}
+	return fmt.Errorf("invalid cursor %c", c)
+}
+
 func editorProcessKeypress() error {
 	c, err := editorReadKey()
 	if err != nil {
@@ -147,6 +177,12 @@ func editorProcessKeypress() error {
 	if c == ctrlKey('q') {
 		out.Write([]byte("\x1b[2J\x1b[H")) // Refresh the screen. Ignore any errors
 		return io.EOF
+	}
+	if c == 'w' || c == 's' || c == 'a' || c == 'd' {
+		if err := editorMoveCursor(c); err != nil {
+			return fmt.Errorf("editorMoveCursor: %v", err)
+		}
+		return nil
 	}
 	return nil
 }
@@ -199,7 +235,7 @@ func editorRefreshScreen() error {
 	if err := editorDrawRows(); err != nil {
 		return fmt.Errorf("editorDrawRows: %v", err)
 	}
-	if _, err := out.Write([]byte("\x1b[H")); err != nil {
+	if _, err := out.Write([]byte(fmt.Sprintf("\x1b[%d;%dH", e.cY+1, e.cX+1))); err != nil {
 		return fmt.Errorf("write: %v", err)
 	}
 	if _, err := out.Write([]byte("\x1b[?25h")); err != nil {
