@@ -13,6 +13,13 @@ var originalSttyState bytes.Buffer
 var reader *bufio.Reader
 var writer *bufio.Writer
 
+type editorConfig struct {
+	screenRows int
+	screenCols int
+}
+
+var e editorConfig
+
 func getSttyState(state *bytes.Buffer) error {
 	cmd := exec.Command("stty", "-g")
 	cmd.Stdin = os.Stdin
@@ -58,6 +65,46 @@ func disableRawMode() error {
 	return nil
 }
 
+func getCursorPosition() (int, int, error) {
+	if _, err := writer.Write([]byte("\x1b[6n")); err != nil {
+		return 0, 0, fmt.Errorf("ask for cursor position: %v", err)
+	}
+	writer.Flush()
+	buffer := make([]byte, 0)
+	for {
+		c, err := reader.ReadByte()
+		if err != nil {
+			return 0, 0, fmt.Errorf("ReadByte: %v", err)
+		}
+		fmt.Printf("%d ('%c')\r\n", c, c)
+		if c == 'R' {
+			break
+		}
+		buffer = append(buffer, c)
+	}
+	if buffer[0] != '\x1b' || buffer[1] != '[' {
+		return 0, 0, fmt.Errorf("failed to parse cursor position")
+	}
+	var rows, cols int
+	if _, err := fmt.Sscanf(string(buffer[2:]), "%d;%d", &rows, &cols); err != nil {
+		return 0, 0, fmt.Errorf("fmt.Sscanf failed to parse cursor position: %v", err)
+	}
+	return rows, cols, nil
+}
+
+func initEditor() error {
+	if _, err := writer.Write([]byte("\x1b[999C\x1b[999B")); err != nil {
+		return err
+	}
+	rows, cols, err := getCursorPosition()
+	if err != nil {
+		return fmt.Errorf("getCursorPosition: %v", err)
+	}
+	e.screenRows = rows
+	e.screenCols = cols
+	return nil
+}
+
 func iscntrl(b byte) bool {
 	if b < 32 {
 		return true
@@ -99,7 +146,7 @@ func editorProcessKeypress() error {
 }
 
 func editorDrawRows() error {
-	for y := 0; y < 24; y++ {
+	for y := 0; y < e.screenRows; y++ {
 		if _, err := writer.Write([]byte("~\r\n")); err != nil {
 			return fmt.Errorf("write: %v", err)
 		}
@@ -127,12 +174,15 @@ func editorRefreshScreen() error {
 }
 
 func main() {
+	reader = bufio.NewReader(os.Stdin)
 	writer = bufio.NewWriter(os.Stdout)
 	if err := enableRawMode(); err != nil {
 		die(fmt.Errorf("enableRawMode: %v", err))
 	}
 	defer disableRawMode()
-	reader = bufio.NewReader(os.Stdin)
+	if err := initEditor(); err != nil {
+		die(fmt.Errorf("initEditor: %v", err))
+	}
 	for {
 		if err := editorRefreshScreen(); err != nil {
 			die(fmt.Errorf("editorRefreshScreen: %v", err))
