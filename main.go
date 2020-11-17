@@ -26,6 +26,7 @@ var (
 		arrowRight int
 		arrowUp    int
 		arrowDown  int
+		delete     int
 		pageUp     int
 		pageDown   int
 		home       int
@@ -35,10 +36,11 @@ var (
 		arrowRight: 1001,
 		arrowUp:    1002,
 		arrowDown:  1003,
-		pageUp:     1004,
-		pageDown:   1005,
-		home:       1006,
-		end:        1007,
+		delete:     1004,
+		pageUp:     1005,
+		pageDown:   1006,
+		home:       1007,
+		end:        1008,
 	}
 )
 
@@ -200,6 +202,9 @@ func editorReadKey() (int, error) {
 			}
 			if c1 == '1' {
 				return editorKeys.home, nil
+			}
+			if c1 == '3' {
+				return editorKeys.delete, nil
 			}
 			if c1 == '4' {
 				return editorKeys.end, nil
