@@ -20,6 +20,20 @@ type editorConfig struct {
 	cY         int
 }
 
+var (
+	editorKeys = struct {
+		arrowLeft  int
+		arrowRight int
+		arrowUp    int
+		arrowDown  int
+	}{
+		arrowLeft:  1000,
+		arrowRight: 1001,
+		arrowUp:    1002,
+		arrowDown:  1003,
+	}
+)
+
 var e editorConfig
 var (
 	kiloVersion = "0.0.1"
@@ -72,7 +86,7 @@ func disableRawMode() error {
 
 func getCursorPosition() (int, int, error) {
 	if _, err := out.Write([]byte("\x1b[6n")); err != nil {
-		return 0, 0, fmt.Errorf("ask for cursor position: %v", err)
+		return 0, 0, fmt.Errorf("query cursor position: %v", err)
 	}
 	if err := out.Flush(); err != nil {
 		return 0, 0, fmt.Errorf("flush: %v", err)
@@ -137,32 +151,58 @@ func die(err error) {
 	os.Exit(1)
 }
 
-func ctrlKey(b byte) byte {
+func ctrlKey(b int) int {
 	return b & 0b00011111
 }
 
-func editorReadKey() (byte, error) {
+func editorReadKey() (int, error) {
 	c, err := in.ReadByte()
 	if err != nil {
 		return 0, err
 	}
-	return c, nil
+	// Read escape sequence
+	if c == '\x1b' {
+		c1, err := in.ReadByte() // TODO: May need to time out here (after 0.1s)
+		if err != nil {
+			return 0, fmt.Errorf("ReadByte: %v", err)
+		}
+		if c1 != '[' {
+			return '\x1b', nil
+		}
+		c2, err := in.ReadByte()
+		if err != nil {
+			return 0, fmt.Errorf("ReadByte: %v", err)
+		}
+		if c2 == 'A' {
+			return editorKeys.arrowUp, nil
+		}
+		if c2 == 'B' {
+			return editorKeys.arrowDown, nil
+		}
+		if c2 == 'C' {
+			return editorKeys.arrowRight, nil
+		}
+		if c2 == 'D' {
+			return editorKeys.arrowLeft, nil
+		}
+	}
+	return int(c), nil
 }
 
-func editorMoveCursor(c byte) error {
-	if c == 'a' {
+func editorMoveCursor(c int) error {
+	if c == editorKeys.arrowLeft {
 		e.cX--
 		return nil
 	}
-	if c == 'd' {
+	if c == editorKeys.arrowRight {
 		e.cX++
 		return nil
 	}
-	if c == 'w' {
+	if c == editorKeys.arrowUp {
 		e.cY--
 		return nil
 	}
-	if c == 's' {
+	if c == editorKeys.arrowDown {
 		e.cY++
 		return nil
 	}
@@ -175,10 +215,10 @@ func editorProcessKeypress() error {
 		return fmt.Errorf("editorReadKey: %v", err)
 	}
 	if c == ctrlKey('q') {
-		out.Write([]byte("\x1b[2J\x1b[H")) // Refresh the screen. Ignore any errors
+		out.Write([]byte("\x1b[2J\x1b[H")) // Ignore errors when refreshing screen
 		return io.EOF
 	}
-	if c == 'w' || c == 's' || c == 'a' || c == 'd' {
+	if c == editorKeys.arrowUp || c == editorKeys.arrowDown || c == editorKeys.arrowLeft || c == editorKeys.arrowRight {
 		if err := editorMoveCursor(c); err != nil {
 			return fmt.Errorf("editorMoveCursor: %v", err)
 		}
