@@ -26,11 +26,15 @@ var (
 		arrowRight int
 		arrowUp    int
 		arrowDown  int
+		pageUp     int
+		pageDown   int
 	}{
 		arrowLeft:  1000,
 		arrowRight: 1001,
 		arrowUp:    1002,
 		arrowDown:  1003,
+		pageUp:     1004,
+		pageDown:   1005,
 	}
 )
 
@@ -173,6 +177,21 @@ func editorReadKey() (int, error) {
 		if err != nil {
 			return 0, fmt.Errorf("ReadByte: %v", err)
 		}
+		if c2 >= '0' && c2 <= '9' {
+			c3, err := in.ReadByte()
+			if err != nil {
+				return 0, fmt.Errorf("ReadByte: %v", err)
+			}
+			if c3 != '~' {
+				return '\x1b', nil
+			}
+			if c2 == '5' {
+				return editorKeys.pageUp, nil
+			}
+			if c2 == '6' {
+				return editorKeys.pageDown, nil
+			}
+		}
 		if c2 == 'A' {
 			return editorKeys.arrowUp, nil
 		}
@@ -231,6 +250,16 @@ func editorProcessKeypress() error {
 			return fmt.Errorf("editorMoveCursor: %v", err)
 		}
 		return nil
+	}
+	if c == editorKeys.pageUp {
+		for e.cY > 0 {
+			editorMoveCursor(editorKeys.arrowUp)
+		}
+	}
+	if c == editorKeys.pageDown {
+		for e.cY < e.screenRows-1 {
+			editorMoveCursor(editorKeys.arrowDown)
+		}
 	}
 	return nil
 }
