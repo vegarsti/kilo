@@ -52,6 +52,8 @@ var (
 	kiloVersion = "0.0.1"
 )
 
+var exitStatus int
+
 func getSttyState(state *bytes.Buffer) error {
 	cmd := exec.Command("stty", "-g")
 	cmd.Stdin = os.Stdin
@@ -148,26 +150,38 @@ func initEditor() error {
 	return nil
 }
 
-func editorOpen() {
-	line := "Hello, world!"
-	e.row = line
+func editorOpen(filename string) error {
+	f, err := os.Open(filename)
+	if err != nil {
+		return fmt.Errorf("open file: %v", err)
+	}
+	defer f.Close()
+	r := bufio.NewReader(f)
+	line, _, err := r.ReadLine()
+	if err != nil {
+		return fmt.Errorf("ReadLine: %v", err)
+	}
+	e.row = string(line)
 	e.numRows = 1
+	return nil
 }
 
 func iscntrl(b byte) bool {
-	if b < 32 {
+	switch {
+	case b < 32:
 		return true
-	}
-	if b == 127 {
+	case b == 127:
 		return true
+	default:
+		return false
 	}
-	return false
 }
 
 func die(err error) {
 	out.Write([]byte("\x1b[2J\x1b[H")) // Refresh the screen. Ignore any errors
+	out.Flush()
 	fmt.Fprintf(os.Stderr, "kilo: %v\n", err)
-	os.Exit(1)
+	exitStatus = 1
 }
 
 func ctrlKey(b int) int {
@@ -193,13 +207,14 @@ func editorReadKey() (int, error) {
 			return '\x1b', nil
 		}
 		if c0 == '0' {
-			if c1 == 'H' {
+			switch c1 {
+			case 'H':
 				return editorKeys.home, nil
-			}
-			if c1 == 'F' {
+			case 'F':
 				return editorKeys.end, nil
+			default:
+				return '\x1b', nil
 			}
-			return '\x1b', nil
 		}
 		if c1 >= '0' && c1 <= '9' {
 			c2, err := in.ReadByte()
@@ -209,48 +224,41 @@ func editorReadKey() (int, error) {
 			if c2 != '~' {
 				return '\x1b', nil
 			}
-			if c1 == '1' {
+			switch c1 {
+			case '1':
 				return editorKeys.home, nil
-			}
-			if c1 == '3' {
+			case '3':
 				return editorKeys.delete, nil
-			}
-			if c1 == '4' {
+			case '4':
 				return editorKeys.end, nil
-			}
-			if c1 == '5' {
+			case '5':
 				return editorKeys.pageUp, nil
-			}
-			if c1 == '6' {
+			case '6':
 				return editorKeys.pageDown, nil
-			}
-			if c1 == '7' {
+			case '7':
 				return editorKeys.home, nil
-			}
-			if c1 == '8' {
+			case '8':
 				return editorKeys.end, nil
+			default:
+				return '\x1b', nil
 			}
+		}
+		switch c1 {
+		case 'A':
+			return editorKeys.arrowUp, nil
+		case 'B':
+			return editorKeys.arrowDown, nil
+		case 'C':
+			return editorKeys.arrowRight, nil
+		case 'D':
+			return editorKeys.arrowLeft, nil
+		case 'H':
+			return editorKeys.home, nil
+		case 'F':
+			return editorKeys.end, nil
+		default:
 			return '\x1b', nil
 		}
-		if c1 == 'A' {
-			return editorKeys.arrowUp, nil
-		}
-		if c1 == 'B' {
-			return editorKeys.arrowDown, nil
-		}
-		if c1 == 'C' {
-			return editorKeys.arrowRight, nil
-		}
-		if c1 == 'D' {
-			return editorKeys.arrowLeft, nil
-		}
-		if c1 == 'H' {
-			return editorKeys.home, nil
-		}
-		if c1 == 'F' {
-			return editorKeys.end, nil
-		}
-		return '\x1b', nil
 	}
 	return int(c), nil
 }
@@ -300,23 +308,33 @@ func editorProcessKeypress() error {
 	}
 	if c == editorKeys.pageUp {
 		for e.cY > 0 {
-			editorMoveCursor(editorKeys.arrowUp)
+			if err := editorMoveCursor(editorKeys.arrowUp); err != nil {
+				return fmt.Errorf("editorMoveCursor: %v", err)
+			}
 		}
+		return nil
 	}
 	if c == editorKeys.pageDown {
 		for e.cY < e.screenRows-1 {
-			editorMoveCursor(editorKeys.arrowDown)
+			if err := editorMoveCursor(editorKeys.arrowDown); err != nil {
+				return fmt.Errorf("editorMoveCursor: %v", err)
+			}
 		}
+		return nil
 	}
 	if c == editorKeys.home {
 		for e.cX > 0 {
-			editorMoveCursor(editorKeys.arrowLeft)
+			if err := editorMoveCursor(editorKeys.arrowLeft); err != nil {
+				return fmt.Errorf("editorMoveCursor: %v", err)
+			}
 		}
 		return nil
 	}
 	if c == editorKeys.end {
 		for e.cX < e.screenCols-1 {
-			editorMoveCursor(editorKeys.arrowRight)
+			if err := editorMoveCursor(editorKeys.arrowRight); err != nil {
+				return fmt.Errorf("editorMoveCursor: %v", err)
+			}
 		}
 		return nil
 	}
@@ -334,7 +352,7 @@ func editorDrawRows() error {
 				return fmt.Errorf("write row: %v", err)
 			}
 			// Welcome message
-		} else if y == e.screenRows/3 {
+		} else if y == e.screenRows/3 && e.numRows == 0 {
 			welcome := fmt.Sprintf("Kilo editor -- version %s", kiloVersion)
 			if len(welcome) > e.screenCols {
 				welcome = welcome[:e.screenCols]
@@ -396,25 +414,41 @@ func editorRefreshScreen() error {
 }
 
 func main() {
-	in = bufio.NewReader(os.Stdin)
+	defer func() {
+		os.Exit(exitStatus)
+	}()
 	out = bufio.NewWriter(os.Stdout)
 	if err := enableRawMode(); err != nil {
 		die(fmt.Errorf("enableRawMode: %v", err))
+		return
 	}
 	defer disableRawMode()
+	in = bufio.NewReader(os.Stdin)
 	if err := initEditor(); err != nil {
 		die(fmt.Errorf("initEditor: %v", err))
+		return
 	}
-	editorOpen()
+	if len(os.Args) > 2 {
+		die(fmt.Errorf("usage: kilo [filename]"))
+		return
+	}
+	if len(os.Args) == 2 {
+		if err := editorOpen(os.Args[1]); err != nil {
+			die(fmt.Errorf("editorOpen: %v", err))
+			return
+		}
+	}
 	for {
 		if err := editorRefreshScreen(); err != nil {
 			die(fmt.Errorf("editorRefreshScreen: %v", err))
+			return
 		}
 		if err := editorProcessKeypress(); err != nil {
 			if err == io.EOF {
 				break
 			}
 			die(fmt.Errorf("editProcessKeypress: %v", err))
+			return
 		}
 	}
 }
