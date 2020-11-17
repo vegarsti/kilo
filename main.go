@@ -28,6 +28,8 @@ var (
 		arrowDown  int
 		pageUp     int
 		pageDown   int
+		home       int
+		end        int
 	}{
 		arrowLeft:  1000,
 		arrowRight: 1001,
@@ -35,6 +37,8 @@ var (
 		arrowDown:  1003,
 		pageUp:     1004,
 		pageDown:   1005,
+		home:       1006,
+		end:        1007,
 	}
 )
 
@@ -166,44 +170,73 @@ func editorReadKey() (int, error) {
 	}
 	// Read escape sequence
 	if c == '\x1b' {
-		c1, err := in.ReadByte() // TODO: May need to time out here (after 0.1s)
+		c0, err := in.ReadByte() // TODO: May need to time out here (after 0.1s)
 		if err != nil {
 			return 0, fmt.Errorf("ReadByte: %v", err)
 		}
-		if c1 != '[' {
+		c1, err := in.ReadByte()
+		if err != nil {
+			return 0, fmt.Errorf("ReadByte: %v", err)
+		}
+		if c0 != '[' && c0 != '0' {
 			return '\x1b', nil
 		}
-		c2, err := in.ReadByte()
-		if err != nil {
-			return 0, fmt.Errorf("ReadByte: %v", err)
+		if c0 == '0' {
+			if c1 == 'H' {
+				return editorKeys.home, nil
+			}
+			if c1 == 'F' {
+				return editorKeys.end, nil
+			}
+			return '\x1b', nil
 		}
-		if c2 >= '0' && c2 <= '9' {
-			c3, err := in.ReadByte()
+		if c1 >= '0' && c1 <= '9' {
+			c2, err := in.ReadByte()
 			if err != nil {
 				return 0, fmt.Errorf("ReadByte: %v", err)
 			}
-			if c3 != '~' {
+			if c2 != '~' {
 				return '\x1b', nil
 			}
-			if c2 == '5' {
+			if c1 == '1' {
+				return editorKeys.home, nil
+			}
+			if c1 == '4' {
+				return editorKeys.end, nil
+			}
+			if c1 == '5' {
 				return editorKeys.pageUp, nil
 			}
-			if c2 == '6' {
+			if c1 == '6' {
 				return editorKeys.pageDown, nil
 			}
+			if c1 == '7' {
+				return editorKeys.home, nil
+			}
+			if c1 == '8' {
+				return editorKeys.end, nil
+			}
+			return '\x1b', nil
 		}
-		if c2 == 'A' {
+		if c1 == 'A' {
 			return editorKeys.arrowUp, nil
 		}
-		if c2 == 'B' {
+		if c1 == 'B' {
 			return editorKeys.arrowDown, nil
 		}
-		if c2 == 'C' {
+		if c1 == 'C' {
 			return editorKeys.arrowRight, nil
 		}
-		if c2 == 'D' {
+		if c1 == 'D' {
 			return editorKeys.arrowLeft, nil
 		}
+		if c1 == 'H' {
+			return editorKeys.home, nil
+		}
+		if c1 == 'F' {
+			return editorKeys.end, nil
+		}
+		return '\x1b', nil
 	}
 	return int(c), nil
 }
@@ -260,6 +293,18 @@ func editorProcessKeypress() error {
 		for e.cY < e.screenRows-1 {
 			editorMoveCursor(editorKeys.arrowDown)
 		}
+	}
+	if c == editorKeys.home {
+		for e.cX > 0 {
+			editorMoveCursor(editorKeys.arrowLeft)
+		}
+		return nil
+	}
+	if c == editorKeys.end {
+		for e.cX < e.screenCols-1 {
+			editorMoveCursor(editorKeys.arrowRight)
+		}
+		return nil
 	}
 	return nil
 }
