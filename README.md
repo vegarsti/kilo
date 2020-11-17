@@ -6,7 +6,7 @@ Let's follow along in Golang!
 Completed steps from Table of Contents
 - [x] Setup
 - [x] Entering raw mode
-- [ ] Raw input and output
+- [x] Raw input and output
 - [ ] A text viewer
 - [ ] A text editor
 - [ ] Search
