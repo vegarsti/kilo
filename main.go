@@ -18,7 +18,11 @@ type editorConfig struct {
 	screenCols int
 	cX         int
 	cY         int
+	numRows    int
+	row        string
 }
+
+var e editorConfig
 
 var (
 	editorKeys = struct {
@@ -44,7 +48,6 @@ var (
 	}
 )
 
-var e editorConfig
 var (
 	kiloVersion = "0.0.1"
 )
@@ -143,6 +146,12 @@ func initEditor() error {
 	e.screenRows = rows
 	e.screenCols = cols
 	return nil
+}
+
+func editorOpen() {
+	line := "Hello, world!"
+	e.row = line
+	e.numRows = 1
 }
 
 func iscntrl(b byte) bool {
@@ -316,7 +325,16 @@ func editorProcessKeypress() error {
 
 func editorDrawRows() error {
 	for y := 0; y < e.screenRows; y++ {
-		if y == e.screenRows/3 {
+		// Stored rows
+		if y < e.numRows {
+			if len(e.row) > e.screenCols {
+				e.row = e.row[:e.screenCols]
+			}
+			if _, err := out.Write([]byte(e.row)); err != nil {
+				return fmt.Errorf("write row: %v", err)
+			}
+			// Welcome message
+		} else if y == e.screenRows/3 {
 			welcome := fmt.Sprintf("Kilo editor -- version %s", kiloVersion)
 			if len(welcome) > e.screenCols {
 				welcome = welcome[:e.screenCols]
@@ -335,14 +353,17 @@ func editorDrawRows() error {
 			if _, err := out.Write([]byte(welcome)); err != nil {
 				return fmt.Errorf("write newline: %v", err)
 			}
+			// Left-hand side markers for unused lines
 		} else {
 			if _, err := out.Write([]byte("~")); err != nil {
 				return fmt.Errorf("write ~: %v", err)
 			}
 		}
+		// Write to end of line
 		if _, err := out.Write([]byte("\x1b[K")); err != nil {
 			return fmt.Errorf("write: %v", err)
 		}
+		// Newline
 		if y < e.screenRows-1 {
 			if _, err := out.Write([]byte("\r\n")); err != nil {
 				return fmt.Errorf("write newline: %v", err)
@@ -384,6 +405,7 @@ func main() {
 	if err := initEditor(); err != nil {
 		die(fmt.Errorf("initEditor: %v", err))
 	}
+	editorOpen()
 	for {
 		if err := editorRefreshScreen(); err != nil {
 			die(fmt.Errorf("editorRefreshScreen: %v", err))
