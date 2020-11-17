@@ -191,19 +191,27 @@ func editorReadKey() (int, error) {
 
 func editorMoveCursor(c int) error {
 	if c == editorKeys.arrowLeft {
-		e.cX--
+		if e.cX != 0 {
+			e.cX--
+		}
 		return nil
 	}
 	if c == editorKeys.arrowRight {
-		e.cX++
+		if e.cX != e.screenCols-1 {
+			e.cX++
+		}
 		return nil
 	}
 	if c == editorKeys.arrowUp {
-		e.cY--
+		if e.cY != 0 {
+			e.cY--
+		}
 		return nil
 	}
 	if c == editorKeys.arrowDown {
-		e.cY++
+		if e.cY != e.screenRows-1 {
+			e.cY++
+		}
 		return nil
 	}
 	return fmt.Errorf("invalid cursor %c", c)
