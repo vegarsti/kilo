@@ -271,29 +271,38 @@ func editorReadKey() (int, error) {
 }
 
 func editorMoveCursor(c int) error {
+	var row string
 	if c == editorKeys.arrowLeft {
 		if e.cX != 0 {
 			e.cX--
 		}
-		return nil
-	}
-	if c == editorKeys.arrowRight {
-		e.cX++
-		return nil
-	}
-	if c == editorKeys.arrowUp {
+	} else if c == editorKeys.arrowRight {
+		if e.cY < e.numRows {
+			row = e.row[e.cY]
+		}
+		if row != "" && e.cX < len(row) {
+			e.cX++
+		}
+	} else if c == editorKeys.arrowUp {
 		if e.cY != 0 {
 			e.cY--
 		}
-		return nil
-	}
-	if c == editorKeys.arrowDown {
+	} else if c == editorKeys.arrowDown {
 		if e.cY < e.numRows {
 			e.cY++
 		}
-		return nil
+	} else {
+		return fmt.Errorf("invalid cursor %c", c)
 	}
-	return fmt.Errorf("invalid cursor %c", c)
+	if e.cY >= e.numRows {
+		row = ""
+	} else {
+		row = e.row[e.cY]
+	}
+	if e.cX > len(row) {
+		e.cX = len(row)
+	}
+	return nil
 }
 
 func editorProcessKeypress() error {
