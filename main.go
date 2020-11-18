@@ -21,6 +21,7 @@ type editorConfig struct {
 	numRows    int
 	row        []string
 	rowOffset  int
+	colOffset  int
 }
 
 var e editorConfig
@@ -277,9 +278,7 @@ func editorMoveCursor(c int) error {
 		return nil
 	}
 	if c == editorKeys.arrowRight {
-		if e.cX != e.screenCols-1 {
-			e.cX++
-		}
+		e.cX++
 		return nil
 	}
 	if c == editorKeys.arrowUp {
@@ -303,7 +302,7 @@ func editorProcessKeypress() error {
 		return fmt.Errorf("editorReadKey: %v", err)
 	}
 	if c == ctrlKey('q') {
-		out.Write([]byte("\x1b[2J\x1b[H")) // Ignore errors when refreshing screen
+		out.Write([]byte("\x1b[2J\x1b[H")) // Ignore potential errors when refreshing screen
 		return io.EOF
 	}
 	if c == editorKeys.arrowUp || c == editorKeys.arrowDown || c == editorKeys.arrowLeft || c == editorKeys.arrowRight {
@@ -352,10 +351,21 @@ func editorDrawRows() error {
 		filerow := y + e.rowOffset
 		// Stored rows
 		if filerow < e.numRows {
-			if len(e.row[filerow]) > e.screenCols {
-				e.row[filerow] = e.row[filerow][:e.screenCols]
+			rowLen := len(e.row[filerow]) - e.colOffset
+			if rowLen < 0 {
+				rowLen = 0
 			}
-			if _, err := out.Write([]byte(e.row[filerow])); err != nil {
+			var displayLine string
+			if e.colOffset < len(e.row[filerow]) {
+				displayLine = e.row[filerow][e.colOffset:]
+			}
+			if rowLen == 0 {
+				displayLine = ""
+			} else if rowLen > e.screenCols {
+				rowLen = e.screenCols
+				displayLine = e.row[filerow][e.colOffset : e.colOffset+rowLen]
+			}
+			if _, err := out.Write([]byte(displayLine)); err != nil {
 				return fmt.Errorf("write row: %v", err)
 			}
 			// Welcome message
@@ -405,6 +415,12 @@ func editorScroll() error {
 	if e.cY >= e.rowOffset+e.screenRows {
 		e.rowOffset = e.cY - e.screenRows + 1
 	}
+	if e.cX < e.colOffset {
+		e.colOffset = e.cX
+	}
+	if e.cX >= e.colOffset+e.screenCols {
+		e.colOffset = e.cX - e.screenCols + 1
+	}
 	return nil
 }
 
@@ -421,7 +437,7 @@ func editorRefreshScreen() error {
 	if err := editorDrawRows(); err != nil {
 		return fmt.Errorf("editorDrawRows: %v", err)
 	}
-	if _, err := out.Write([]byte(fmt.Sprintf("\x1b[%d;%dH", e.cY-e.rowOffset+1, e.cX+1))); err != nil {
+	if _, err := out.Write([]byte(fmt.Sprintf("\x1b[%d;%dH", e.cY-e.rowOffset+1, e.cX-e.colOffset+1))); err != nil {
 		return fmt.Errorf("write: %v", err)
 	}
 	if _, err := out.Write([]byte("\x1b[?25h")); err != nil {
