@@ -19,7 +19,7 @@ type editorConfig struct {
 	cX         int
 	cY         int
 	numRows    int
-	row        string
+	row        []string
 }
 
 var e editorConfig
@@ -157,12 +157,17 @@ func editorOpen(filename string) error {
 	}
 	defer f.Close()
 	r := bufio.NewReader(f)
-	line, _, err := r.ReadLine()
-	if err != nil {
-		return fmt.Errorf("ReadLine: %v", err)
+	for {
+		line, _, err := r.ReadLine()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("ReadLine: %v", err)
+		}
+		e.row = append(e.row, string(line))
 	}
-	e.row = string(line)
-	e.numRows = 1
+	e.numRows = len(e.row)
 	return nil
 }
 
@@ -345,10 +350,10 @@ func editorDrawRows() error {
 	for y := 0; y < e.screenRows; y++ {
 		// Stored rows
 		if y < e.numRows {
-			if len(e.row) > e.screenCols {
-				e.row = e.row[:e.screenCols]
+			if len(e.row[y]) > e.screenCols {
+				e.row[y] = e.row[y][:e.screenCols]
 			}
-			if _, err := out.Write([]byte(e.row)); err != nil {
+			if _, err := out.Write([]byte(e.row[y])); err != nil {
 				return fmt.Errorf("write row: %v", err)
 			}
 			// Welcome message
