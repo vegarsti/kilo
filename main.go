@@ -272,16 +272,28 @@ func editorReadKey() (int, error) {
 
 func editorMoveCursor(c int) error {
 	var row string
+	var rowExists bool
+	if e.cY >= e.numRows {
+		rowExists = false
+		row = ""
+	}
+	if e.cY < e.numRows {
+		rowExists = true
+		row = e.row[e.cY]
+	}
 	if c == editorKeys.arrowLeft {
 		if e.cX != 0 {
 			e.cX--
+		} else if e.cY > 0 {
+			e.cY--
+			e.cX = len(e.row[e.cY])
 		}
 	} else if c == editorKeys.arrowRight {
-		if e.cY < e.numRows {
-			row = e.row[e.cY]
-		}
-		if row != "" && e.cX < len(row) {
+		if rowExists && e.cX < len(row) {
 			e.cX++
+		} else if rowExists && e.cX == len(row) {
+			e.cY++
+			e.cX = 0
 		}
 	} else if c == editorKeys.arrowUp {
 		if e.cY != 0 {
