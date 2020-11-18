@@ -20,6 +20,7 @@ type editorConfig struct {
 	cY         int
 	numRows    int
 	row        []string
+	rowOffset  int
 }
 
 var e editorConfig
@@ -288,7 +289,7 @@ func editorMoveCursor(c int) error {
 		return nil
 	}
 	if c == editorKeys.arrowDown {
-		if e.cY != e.screenRows-1 {
+		if e.cY < e.numRows {
 			e.cY++
 		}
 		return nil
@@ -320,7 +321,7 @@ func editorProcessKeypress() error {
 		return nil
 	}
 	if c == editorKeys.pageDown {
-		for e.cY < e.screenRows-1 {
+		for e.cY < e.numRows {
 			if err := editorMoveCursor(editorKeys.arrowDown); err != nil {
 				return fmt.Errorf("editorMoveCursor: %v", err)
 			}
@@ -348,12 +349,13 @@ func editorProcessKeypress() error {
 
 func editorDrawRows() error {
 	for y := 0; y < e.screenRows; y++ {
+		filerow := y + e.rowOffset
 		// Stored rows
-		if y < e.numRows {
-			if len(e.row[y]) > e.screenCols {
-				e.row[y] = e.row[y][:e.screenCols]
+		if filerow < e.numRows {
+			if len(e.row[filerow]) > e.screenCols {
+				e.row[filerow] = e.row[filerow][:e.screenCols]
 			}
-			if _, err := out.Write([]byte(e.row[y])); err != nil {
+			if _, err := out.Write([]byte(e.row[filerow])); err != nil {
 				return fmt.Errorf("write row: %v", err)
 			}
 			// Welcome message
@@ -396,7 +398,20 @@ func editorDrawRows() error {
 	return nil
 }
 
+func editorScroll() error {
+	if e.cY < e.rowOffset {
+		e.rowOffset = e.cY
+	}
+	if e.cY >= e.rowOffset+e.screenRows {
+		e.rowOffset = e.cY - e.screenRows + 1
+	}
+	return nil
+}
+
 func editorRefreshScreen() error {
+	if err := editorScroll(); err != nil {
+		return fmt.Errorf("editorScroll: %v", err)
+	}
 	if _, err := out.Write([]byte("\x1b[?25l")); err != nil {
 		return fmt.Errorf("write: %v", err)
 	}
@@ -406,7 +421,7 @@ func editorRefreshScreen() error {
 	if err := editorDrawRows(); err != nil {
 		return fmt.Errorf("editorDrawRows: %v", err)
 	}
-	if _, err := out.Write([]byte(fmt.Sprintf("\x1b[%d;%dH", e.cY+1, e.cX+1))); err != nil {
+	if _, err := out.Write([]byte(fmt.Sprintf("\x1b[%d;%dH", e.cY-e.rowOffset+1, e.cX+1))); err != nil {
 		return fmt.Errorf("write: %v", err)
 	}
 	if _, err := out.Write([]byte("\x1b[?25h")); err != nil {
