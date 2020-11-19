@@ -13,13 +13,17 @@ var originalSttyState bytes.Buffer
 var in *bufio.Reader
 var out *bufio.Writer
 
+type row struct {
+	row string
+}
+
 type editorConfig struct {
 	screenRows int
 	screenCols int
 	cX         int
 	cY         int
 	numRows    int
-	row        []string
+	rows       []row
 	rowOffset  int
 	colOffset  int
 }
@@ -167,9 +171,9 @@ func editorOpen(filename string) error {
 		if err != nil {
 			return fmt.Errorf("ReadLine: %v", err)
 		}
-		e.row = append(e.row, string(line))
+		e.rows = append(e.rows, row{row: string(line)})
 	}
-	e.numRows = len(e.row)
+	e.numRows = len(e.rows)
 	return nil
 }
 
@@ -279,14 +283,14 @@ func editorMoveCursor(c int) error {
 	}
 	if e.cY < e.numRows {
 		rowExists = true
-		row = e.row[e.cY]
+		row = e.rows[e.cY].row
 	}
 	if c == editorKeys.arrowLeft {
 		if e.cX != 0 {
 			e.cX--
 		} else if e.cY > 0 {
 			e.cY--
-			e.cX = len(e.row[e.cY])
+			e.cX = len(e.rows[e.cY].row)
 		}
 	} else if c == editorKeys.arrowRight {
 		if rowExists && e.cX < len(row) {
@@ -309,7 +313,7 @@ func editorMoveCursor(c int) error {
 	if e.cY >= e.numRows {
 		row = ""
 	} else {
-		row = e.row[e.cY]
+		row = e.rows[e.cY].row
 	}
 	if e.cX > len(row) {
 		e.cX = len(row)
@@ -372,19 +376,19 @@ func editorDrawRows() error {
 		filerow := y + e.rowOffset
 		// Stored rows
 		if filerow < e.numRows {
-			rowLen := len(e.row[filerow]) - e.colOffset
+			rowLen := len(e.rows[filerow].row) - e.colOffset
 			if rowLen < 0 {
 				rowLen = 0
 			}
 			var displayLine string
-			if e.colOffset < len(e.row[filerow]) {
-				displayLine = e.row[filerow][e.colOffset:]
+			if e.colOffset < len(e.rows[filerow].row) {
+				displayLine = e.rows[filerow].row[e.colOffset:]
 			}
 			if rowLen == 0 {
 				displayLine = ""
 			} else if rowLen > e.screenCols {
 				rowLen = e.screenCols
-				displayLine = e.row[filerow][e.colOffset : e.colOffset+rowLen]
+				displayLine = e.rows[filerow].row[e.colOffset : e.colOffset+rowLen]
 			}
 			if _, err := out.Write([]byte(displayLine)); err != nil {
 				return fmt.Errorf("write row: %v", err)
