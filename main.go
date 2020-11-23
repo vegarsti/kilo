@@ -28,6 +28,7 @@ type editorConfig struct {
 	rows       []row
 	rowOffset  int
 	colOffset  int
+	filename   string
 }
 
 var e editorConfig
@@ -180,7 +181,7 @@ func initEditor() error {
 	if err != nil {
 		return fmt.Errorf("getWindowSize: %v", err)
 	}
-	e.screenRows = rows
+	e.screenRows = rows - 1
 	e.screenCols = cols
 	return nil
 }
@@ -191,6 +192,7 @@ func editorOpen(filename string) error {
 		return fmt.Errorf("open file: %v", err)
 	}
 	defer f.Close()
+	e.filename = filename
 	r := bufio.NewReader(f)
 	i := 0
 	for {
@@ -453,10 +455,8 @@ func editorDrawRows() error {
 			return fmt.Errorf("write: %v", err)
 		}
 		// Newline
-		if y < e.screenRows-1 {
-			if _, err := out.Write([]byte("\r\n")); err != nil {
-				return fmt.Errorf("write newline: %v", err)
-			}
+		if _, err := out.Write([]byte("\r\n")); err != nil {
+			return fmt.Errorf("write newline: %v", err)
 		}
 	}
 	return nil
@@ -493,6 +493,43 @@ func editorScroll() error {
 	return nil
 }
 
+func editorDrawStatusBar() error {
+	// Invert colors
+	if _, err := out.Write([]byte("\x1b[7m")); err != nil {
+		return fmt.Errorf("write: %v", err)
+	}
+	displayFilename := e.filename
+	if displayFilename == "" {
+		displayFilename = "[No Name]"
+	}
+	status := fmt.Sprintf("%.20s - %d lines", displayFilename, e.numRows)
+	lineStatus := fmt.Sprintf("%d/%d", e.cY+1, e.numRows)
+	if len(status) > e.screenCols {
+		status = status[:e.screenCols]
+	}
+	if _, err := out.Write([]byte(status)); err != nil {
+		return fmt.Errorf("write: %v", err)
+	}
+	i := len(status)
+	for i < e.screenCols {
+		if e.screenCols-i == len(lineStatus) {
+			if _, err := out.Write([]byte(lineStatus)); err != nil {
+				return fmt.Errorf("write: %v", err)
+			}
+			break
+		}
+		if _, err := out.Write([]byte(" ")); err != nil {
+			return fmt.Errorf("write: %v", err)
+		}
+		i++
+	}
+	// Switch back to normal formatting
+	if _, err := out.Write([]byte("\x1b[m")); err != nil {
+		return fmt.Errorf("write: %v", err)
+	}
+	return nil
+}
+
 func editorRefreshScreen() error {
 	if err := editorScroll(); err != nil {
 		return fmt.Errorf("editorScroll: %v", err)
@@ -505,6 +542,9 @@ func editorRefreshScreen() error {
 	}
 	if err := editorDrawRows(); err != nil {
 		return fmt.Errorf("editorDrawRows: %v", err)
+	}
+	if err := editorDrawStatusBar(); err != nil {
+		return fmt.Errorf("editorDrawStatusBar: %v", err)
 	}
 	if _, err := out.Write([]byte(fmt.Sprintf("\x1b[%d;%dH", e.cY-e.rowOffset+1, e.rX-e.colOffset+1))); err != nil {
 		return fmt.Errorf("write: %v", err)
