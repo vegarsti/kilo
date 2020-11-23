@@ -7,7 +7,7 @@ Completed steps from Table of Contents
 - [x] Setup
 - [x] Entering raw mode
 - [x] Raw input and output
-- [ ] A text viewer
+- [x] A text viewer
 - [ ] A text editor
 - [ ] Search
 - [ ] Syntax highlighting
