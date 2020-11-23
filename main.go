@@ -14,7 +14,8 @@ var in *bufio.Reader
 var out *bufio.Writer
 
 type row struct {
-	row string
+	content string
+	render  string
 }
 
 type editorConfig struct {
@@ -58,6 +59,10 @@ var (
 	kiloVersion = "0.0.1"
 )
 
+var (
+	tabSize = 4
+)
+
 var exitStatus int
 
 func getSttyState(state *bytes.Buffer) error {
@@ -96,6 +101,24 @@ func enableRawMode() error {
 		}
 	}
 	return nil
+}
+
+func editorCreateRow(line []byte) row {
+	r := row{}
+	r.content = string(line)
+	var render []byte
+	render = make([]byte, 32)
+	for _, b := range line {
+		if b == '\t' {
+			for i := 0; i < tabSize; i++ {
+				render = append(render, ' ')
+			}
+		} else {
+			render = append(render, b)
+		}
+	}
+	r.render = string(render)
+	return r
 }
 
 func disableRawMode() error {
@@ -163,6 +186,7 @@ func editorOpen(filename string) error {
 	}
 	defer f.Close()
 	r := bufio.NewReader(f)
+	i := 0
 	for {
 		line, _, err := r.ReadLine()
 		if err == io.EOF {
@@ -171,7 +195,8 @@ func editorOpen(filename string) error {
 		if err != nil {
 			return fmt.Errorf("ReadLine: %v", err)
 		}
-		e.rows = append(e.rows, row{row: string(line)})
+		e.rows = append(e.rows, editorCreateRow(line))
+		i++
 	}
 	e.numRows = len(e.rows)
 	return nil
@@ -283,14 +308,14 @@ func editorMoveCursor(c int) error {
 	}
 	if e.cY < e.numRows {
 		rowExists = true
-		row = e.rows[e.cY].row
+		row = e.rows[e.cY].content
 	}
 	if c == editorKeys.arrowLeft {
 		if e.cX != 0 {
 			e.cX--
 		} else if e.cY > 0 {
 			e.cY--
-			e.cX = len(e.rows[e.cY].row)
+			e.cX = len(e.rows[e.cY].content)
 		}
 	} else if c == editorKeys.arrowRight {
 		if rowExists && e.cX < len(row) {
@@ -313,7 +338,7 @@ func editorMoveCursor(c int) error {
 	if e.cY >= e.numRows {
 		row = ""
 	} else {
-		row = e.rows[e.cY].row
+		row = e.rows[e.cY].content
 	}
 	if e.cX > len(row) {
 		e.cX = len(row)
@@ -376,19 +401,19 @@ func editorDrawRows() error {
 		filerow := y + e.rowOffset
 		// Stored rows
 		if filerow < e.numRows {
-			rowLen := len(e.rows[filerow].row) - e.colOffset
+			rowLen := len(e.rows[filerow].render) - e.colOffset
 			if rowLen < 0 {
 				rowLen = 0
 			}
 			var displayLine string
-			if e.colOffset < len(e.rows[filerow].row) {
-				displayLine = e.rows[filerow].row[e.colOffset:]
+			if e.colOffset < len(e.rows[filerow].render) {
+				displayLine = e.rows[filerow].render[e.colOffset:]
 			}
 			if rowLen == 0 {
 				displayLine = ""
 			} else if rowLen > e.screenCols {
 				rowLen = e.screenCols
-				displayLine = e.rows[filerow].row[e.colOffset : e.colOffset+rowLen]
+				displayLine = e.rows[filerow].render[e.colOffset : e.colOffset+rowLen]
 			}
 			if _, err := out.Write([]byte(displayLine)); err != nil {
 				return fmt.Errorf("write row: %v", err)
