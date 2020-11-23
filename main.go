@@ -23,6 +23,7 @@ type editorConfig struct {
 	screenCols int
 	cX         int
 	cY         int
+	rX         int
 	numRows    int
 	rows       []row
 	rowOffset  int
@@ -60,7 +61,7 @@ var (
 )
 
 var (
-	tabSize = 4
+	kiloTabSize = 4
 )
 
 var exitStatus int
@@ -108,13 +109,18 @@ func editorCreateRow(line []byte) row {
 	r.content = string(line)
 	var render []byte
 	render = make([]byte, 32)
+	idx := 0
 	for _, b := range line {
 		if b == '\t' {
-			for i := 0; i < tabSize; i++ {
+			render = append(render, ' ')
+			idx++
+			for idx%kiloTabSize != 0 {
 				render = append(render, ' ')
+				idx++
 			}
 		} else {
 			render = append(render, b)
+			idx++
 		}
 	}
 	r.render = string(render)
@@ -458,18 +464,33 @@ func editorDrawRows() error {
 	return nil
 }
 
+func editorRowCxToRx(r row, cX int) int {
+	rx := 0
+	for j := 0; j < cX; j++ {
+		if r.content[j] == '\t' {
+			rx += (kiloTabSize - 1) - (rx % kiloTabSize)
+		}
+		rx++
+	}
+	return rx
+}
+
 func editorScroll() error {
+	e.rX = e.cX
+	if e.cY < e.numRows {
+		e.rX = editorRowCxToRx(e.rows[e.cY], e.cX)
+	}
 	if e.cY < e.rowOffset {
 		e.rowOffset = e.cY
 	}
 	if e.cY >= e.rowOffset+e.screenRows {
 		e.rowOffset = e.cY - e.screenRows + 1
 	}
-	if e.cX < e.colOffset {
-		e.colOffset = e.cX
+	if e.rX < e.colOffset {
+		e.colOffset = e.rX
 	}
-	if e.cX >= e.colOffset+e.screenCols {
-		e.colOffset = e.cX - e.screenCols + 1
+	if e.rX >= e.colOffset+e.screenCols {
+		e.colOffset = e.rX - e.screenCols + 1
 	}
 	return nil
 }
@@ -487,7 +508,7 @@ func editorRefreshScreen() error {
 	if err := editorDrawRows(); err != nil {
 		return fmt.Errorf("editorDrawRows: %v", err)
 	}
-	if _, err := out.Write([]byte(fmt.Sprintf("\x1b[%d;%dH", e.cY-e.rowOffset+1, e.cX-e.colOffset+1))); err != nil {
+	if _, err := out.Write([]byte(fmt.Sprintf("\x1b[%d;%dH", e.cY-e.rowOffset+1, e.rX-e.colOffset+1))); err != nil {
 		return fmt.Errorf("write: %v", err)
 	}
 	if _, err := out.Write([]byte("\x1b[?25h")); err != nil {
