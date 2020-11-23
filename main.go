@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"time"
 )
 
 var originalSttyState bytes.Buffer
@@ -19,16 +20,18 @@ type row struct {
 }
 
 type editorConfig struct {
-	screenRows int
-	screenCols int
-	cX         int
-	cY         int
-	rX         int
-	numRows    int
-	rows       []row
-	rowOffset  int
-	colOffset  int
-	filename   string
+	screenRows    int
+	screenCols    int
+	cX            int
+	cY            int
+	rX            int
+	numRows       int
+	rows          []row
+	rowOffset     int
+	colOffset     int
+	filename      string
+	statusMsg     string
+	statusMsgTime time.Time
 }
 
 var e editorConfig
@@ -181,7 +184,7 @@ func initEditor() error {
 	if err != nil {
 		return fmt.Errorf("getWindowSize: %v", err)
 	}
-	e.screenRows = rows - 1
+	e.screenRows = rows - 2
 	e.screenCols = cols
 	return nil
 }
@@ -527,6 +530,28 @@ func editorDrawStatusBar() error {
 	if _, err := out.Write([]byte("\x1b[m")); err != nil {
 		return fmt.Errorf("write: %v", err)
 	}
+	// Newline
+	if _, err := out.Write([]byte("\r\n")); err != nil {
+		return fmt.Errorf("write: %v", err)
+	}
+	return nil
+}
+
+func editorDrawMessageBar() error {
+	// Clear
+	if _, err := out.Write([]byte("\x1b[K")); err != nil {
+		return fmt.Errorf("write: %v", err)
+	}
+	statusMsg := e.statusMsg
+	if len(statusMsg) > e.screenCols {
+		statusMsg = statusMsg[:e.screenCols]
+	}
+	fiveSecondsAgo := time.Now().Add(-time.Second * 5)
+	if statusMsg != "" && e.statusMsgTime.After(fiveSecondsAgo) {
+		if _, err := out.Write([]byte(statusMsg)); err != nil {
+			return fmt.Errorf("write: %v", err)
+		}
+	}
 	return nil
 }
 
@@ -546,6 +571,9 @@ func editorRefreshScreen() error {
 	if err := editorDrawStatusBar(); err != nil {
 		return fmt.Errorf("editorDrawStatusBar: %v", err)
 	}
+	if err := editorDrawMessageBar(); err != nil {
+		return fmt.Errorf("editorDrawMessageBar: %v", err)
+	}
 	if _, err := out.Write([]byte(fmt.Sprintf("\x1b[%d;%dH", e.cY-e.rowOffset+1, e.rX-e.colOffset+1))); err != nil {
 		return fmt.Errorf("write: %v", err)
 	}
@@ -556,6 +584,11 @@ func editorRefreshScreen() error {
 		return fmt.Errorf("flush: %v", err)
 	}
 	return nil
+}
+
+func editorSetStatusMessage(msg string) {
+	e.statusMsg = msg
+	e.statusMsgTime = time.Now()
 }
 
 func main() {
@@ -583,6 +616,7 @@ func main() {
 			return
 		}
 	}
+	editorSetStatusMessage("HELP: Ctrl-Q = quit")
 	for {
 		if err := editorRefreshScreen(); err != nil {
 			die(fmt.Errorf("editorRefreshScreen: %v", err))
