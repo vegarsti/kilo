@@ -108,7 +108,7 @@ func editorCreateRow(line []byte) row {
 	r := row{}
 	r.content = string(line)
 	var render []byte
-	render = make([]byte, 32)
+	render = make([]byte, 0)
 	idx := 0
 	for _, b := range line {
 		if b == '\t' {
@@ -368,7 +368,9 @@ func editorProcessKeypress() error {
 		return nil
 	}
 	if c == editorKeys.pageUp {
-		for e.cY > 0 {
+		e.cY = e.rowOffset
+		times := e.screenRows
+		for i := 0; i < times; i++ {
 			if err := editorMoveCursor(editorKeys.arrowUp); err != nil {
 				return fmt.Errorf("editorMoveCursor: %v", err)
 			}
@@ -376,7 +378,9 @@ func editorProcessKeypress() error {
 		return nil
 	}
 	if c == editorKeys.pageDown {
-		for e.cY < e.numRows {
+		e.cY = e.rowOffset + e.screenRows - 1
+		times := e.screenRows
+		for i := 0; i < times; i++ {
 			if err := editorMoveCursor(editorKeys.arrowDown); err != nil {
 				return fmt.Errorf("editorMoveCursor: %v", err)
 			}
@@ -384,18 +388,12 @@ func editorProcessKeypress() error {
 		return nil
 	}
 	if c == editorKeys.home {
-		for e.cX > 0 {
-			if err := editorMoveCursor(editorKeys.arrowLeft); err != nil {
-				return fmt.Errorf("editorMoveCursor: %v", err)
-			}
-		}
+		e.cX = 0
 		return nil
 	}
 	if c == editorKeys.end {
-		for e.cX < e.screenCols-1 {
-			if err := editorMoveCursor(editorKeys.arrowRight); err != nil {
-				return fmt.Errorf("editorMoveCursor: %v", err)
-			}
+		if e.cY < e.numRows {
+			e.cX = len(e.rows[e.cY].content)
 		}
 		return nil
 	}
